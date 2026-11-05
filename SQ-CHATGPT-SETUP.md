@@ -50,3 +50,78 @@ Act as my patient, step-by-step setup assistant. Read the source repository and 
 - Use official documentation and check current pricing/quotas; avoid unexpected paid subscriptions.
 - Treat the original repository as a **prototype**, not proof that the API integrations are finished.
 - Preserve the appearance of the overlays while making their infrastructure independent.
+
+
+---
+
+## Current prototype status — 5 November 2026
+
+**Repository:** https://github.com/alfonsogordon/squadding-quads-overlays  
+**Preview:** https://alfonsogordon.github.io/squadding-quads-overlays/  
+**Prototype Worker:** https://sq-overlays-api.stevewasere-d51.workers.dev  
+**YouTube channel:** https://www.youtube.com/@squaddingquads
+
+### What is implemented and tested
+
+| Feature | Current state | Remaining work |
+| --- | --- | --- |
+| V5 glass styling, FPV background and browser-source pages | Deployed on GitHub Pages; user visually confirmed | Keep design unchanged during integrations |
+| Public subscriber count | Working through Cloudflare `/subscribers`; 5-minute overlay refresh; public count rounded by YouTube | Replace prototype Worker/API key with SQ-owned equivalents |
+| Live chat | Cloudflare `/chat` responds; overlay displays offline/waiting state correctly | Test real livestream, messages, discovery, rate limits and recovery; public YouTube `/@squaddingquads/live` page is an **unofficial, unreliable** live-discovery method |
+| Patreon acknowledgements | Demo names only | Creator OAuth, safe active-patron retrieval, privacy choices, syncing |
+| YouTube paid memberships | Demo names only | Verify SQ's eligibility for YouTube Members API and OAuth; fallback manual import |
+| Combined supporter scroll | V5 scrolling visual exists | Implement a unified safe data feed; do not expose non-consenting private supporter information |
+
+**Important:** The prototype's working live integrations currently depend on the friend's Cloudflare Worker and API key. SQ's deployment is not independent until all endpoints, credentials and data sources are moved to his own accounts.
+
+### Exact deployed frontend paths
+
+- `index.html` → `test-controls.html`: preview with controls and optional `fpv-background.png`.
+- `overlay.html`: shared V5 layout and JavaScript; currently hard-codes the prototype Worker URL.
+- `subscribers.html`, `chat.html`, `supporters.html`: individual OBS entry points.
+- `fpv-background.png`: preview-only FPV backdrop. Never add it to production browser sources.
+- `SQ-CHATGPT-SETUP.md`: this guide.
+
+OBS production links in the prototype:
+- https://alfonsogordon.github.io/squadding-quads-overlays/subscribers.html
+- https://alfonsogordon.github.io/squadding-quads-overlays/chat.html
+- https://alfonsogordon.github.io/squadding-quads-overlays/supporters.html
+
+The overlay currently contains a demo chat hook (`?demo=1`) and demo supporter names. **Do not present those as real audience data.** The preview's test buttons are for local testing only.
+
+### Backend contract for migration
+
+`GET /subscribers` returns JSON like `{"channel":"Squadding Quads","subscribers":63100,"hidden":false,"updatedAt":"..."}`. The numeric count is a historical test value, not a live promise.
+
+`GET /chat` returns `{"status":"offline","message":"Waiting for Squadding Quads to go live...","messages":[],"updatedAt":"..."}` while offline. During live broadcasts it should return `status:"live"`, `messages:[{id,author,text,publishedAt,owner,moderator,member}]` and `pollingIntervalMillis`.
+
+The Worker uses a Cloudflare secret named `YOUTUBE_API_KEY`. **Never commit the key or paste it into ChatGPT.** Restrict it to YouTube Data API v3. Public API responses must not include credentials.
+
+### Supporters implementation plan
+
+1. Preserve the V5 supporters panel at approximately 220×235 px, frosted glass, vertical scrolling, and legible shadows.
+2. Implement a normalized supporter feed such as `GET /supporters` with only **explicitly approved public display names**, platform labels (`Patreon` or `YouTube member`), and no emails, billing details, patron IDs, tokens, or private metadata. Treat it as public: anyone can read the endpoint.
+3. For initial development, use clearly marked **demo** data; ensure it is not confused with real names.
+4. Patreon: SQ authorizes his own creator account via the official Patreon OAuth flow. Store access/refresh tokens in Cloudflare secrets or appropriate protected storage; fetch current eligible patrons; refresh conservatively; handle token expiry, revoked consent, and cancelled memberships. Do not assume that patrons consent to public acknowledgment merely by subscribing.
+5. YouTube: check whether SQ has official Members API access, including channel authorization and required scopes. Do not assume an API key can access the roster. If access is unavailable, offer an owner-managed consent-based list (e.g., a simple CSV import or protected admin editor). Label manual data accurately and let SQ remove entries.
+6. Normalize names and platform labels. Do not automatically merge two supporters with similar names across platforms: identity matching needs confirmation. Support display preference: display name, username, or anonymous/hidden. Do not expose real names by default.
+7. Use a **private admin-only** update mechanism for the supporter list; do not expose an unauthenticated write endpoint. Public `/supporters` must return only approved display data.
+8. In the frontend, use safe text rendering (`textContent`, not unsanitized HTML) and keep scrolling smooth as data changes. If no approved supporters exist, show a neutral empty state, not invented names.
+9. Test a supporter being added, removed, anonymized, and expiring; verify public responses contain only approved fields.
+10. Document how SQ can edit the list and reauthorize both services without needing his friend's help.
+
+### SQ handover checklist
+
+- [ ] SQ owns a new GitHub repo and GitHub Pages site with all V5 assets.
+- [ ] SQ owns a Cloudflare Worker and any KV/D1 storage.
+- [ ] SQ owns the Google Cloud project and API key (stored as a Worker secret).
+- [ ] SQ has authorized Patreon in his own account; tokens never shared with the friend.
+- [ ] YouTube memberships access is verified or manual fallback documented.
+- [ ] All hard-coded `alfonsogordon.github.io` and `stevewasere-d51.workers.dev` references are replaced, including Worker CORS configuration.
+- [ ] Each OBS Browser Source points to SQ's own GitHub Pages URLs.
+- [ ] All three sources work without requests to the friend's infrastructure.
+- [ ] SQ can restart, update, troubleshoot and revoke access independently.
+
+### Prompt for SQ to continue this project in ChatGPT
+
+> I am the owner of Squadding Quads. Read `SQ-CHATGPT-SETUP.md` and the actual source files at https://github.com/alfonsogordon/squadding-quads-overlays. Help me deploy and own an independent copy, using **my** GitHub, Cloudflare, Google and Patreon accounts. Work one step at a time, verify each deployment, preserve the V5 frosted-glass design, never ask for secrets in chat, and clearly distinguish demo features from live integrations. Start by checking the source repository and creating my own repository.
